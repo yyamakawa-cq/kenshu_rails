@@ -1,53 +1,67 @@
 class BooksController < ApplicationController
-  before_action :set_book, only: [:show, :update, :destroy]
+  include ActionController::HttpAuthentication::Token::ControllerMethods
+  before_action :authenticate
+  before_action :set_book, only: [:update]
 
-  # GET /books
-  # GET /books.json
   def index
-    @books = Book.all
+    set_user
+    @limit = params[:limit].to_i || 20
+    @page = params[:page].to_i || 1
+    offset = @limit * (@page - 1 )
+    @count = Book.where(user_id: @user.id).count
+    @pages = @count / @limit
+    if @count % @limit != 0
+      @pages += 1
+    end
+    @books = Book.where(user_id: @user.id).limit(@limit).offset(offset).order(id: :asc)
+    @status = 200
   end
 
-  # GET /books/1
-  # GET /books/1.json
-  def show
-  end
-
-  # POST /books
-  # POST /books.json
   def create
+    set_user
     @book = Book.new(book_params)
-
+    @book["user_id"] = @user.id
     if @book.save
-      render :show, status: :created, location: @book
+      @status = 200
+      render :show, status: :ok
     else
       render json: @book.errors, status: :unprocessable_entity
     end
   end
 
-  # PATCH/PUT /books/1
-  # PATCH/PUT /books/1.json
   def update
-    if @book.update(book_params)
-      render :show, status: :ok, location: @book
+    set_user
+    if @user.id != @book.user_id
+      render json: { "status": 400, "message": "tokenのユーザーidと違う" }, status: :bad_request
     else
-      render json: @book.errors, status: :unprocessable_entity
+      if @book.update(book_params)
+        @status = 200
+        render :show, status: :ok
+      else
+        render json: @book.errors, status: :unprocessable_entity
+      end
     end
   end
 
-  # DELETE /books/1
-  # DELETE /books/1.json
-  def destroy
-    @book.destroy
+  protected
+  def authenticate
+    authenticate_or_request_with_http_token do |token, options|
+      User.exists?(token: token)
+    end
   end
 
   private
-    # Use callbacks to share common setup or constraints between actions.
+    def set_user
+      authenticate_with_http_token do |token, options|
+        @user = User.find_by(token: token)
+      end
+    end
+
     def set_book
       @book = Book.find(params[:id])
     end
 
-    # Never trust parameters from the scary internet, only allow the white list through.
     def book_params
-      params.require(:book).permit(:name, :image, :price, :purchase_date, :user_id)
+      params.require(:book).permit(:name, :image, :price, :purchase_date)
     end
 end

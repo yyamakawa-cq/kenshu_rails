@@ -4,24 +4,19 @@ class SessionsController < ApplicationController
 
   def create
     if !(User.exists?(email: params[:email].downcase))
-      @status = 404
-      @message = "該当メールアドレスなし"
-      render "users/error", status: :not_found
+      render json: { "status": 404, "message": "該当メールアドレスなし" }, status: :not_found
     else
       @user = User.find_by!(email: params[:email].downcase)
       if @user.password != params[:password] then
-        @status = 401
-        @message = "パスワードが不正"
-        render "users/error", status: :unauthorized
+        render json: { "status": 401, "message": "パスワードが不正" }, status: :unauthorized
       elsif @user.password == params[:password] then
-        if @user.token != request.headers[:authorization]
-          @user.regenerate_token
-          @status = 200
-          render "users/show", status: :ok
-        else @user.token == request.headers[:authorization]
-          @status = 200
-          render "users/show", status: :ok
+        authenticate_with_http_token do |token, options|
+          if @user.token != token
+            @user.regenerate_token
+          end
         end
+        @status = 200
+        render "users/show", status: :ok
       end
     end
   end
@@ -33,7 +28,7 @@ class SessionsController < ApplicationController
   protected
   def authenticate
     authenticate_or_request_with_http_token do |token, options|
-      User.exists?(token: token)
+      User.where("(token = ?) OR (email = ?)", token, params[:email].downcase)
     end
   end
 end
