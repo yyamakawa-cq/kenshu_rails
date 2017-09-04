@@ -13,7 +13,7 @@ class BooksController < ApplicationController
     @limit = (params[:limit] || LIMIT).to_i
     @page = (params[:page] || PAGE).to_i
     offset = @limit * (@page - 1 )
-    @count = Book.where(user_id: @user.id).count
+    @count = @user.books.count
     @pages = @count / @limit
     if @count % @limit != 0
       @pages += 1
