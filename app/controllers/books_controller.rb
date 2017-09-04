@@ -1,6 +1,5 @@
 class BooksController < ApplicationController
   include ActionController::HttpAuthentication::Token::ControllerMethods
-  require 'httpclient'
   before_action :authenticate
   before_action :set_user
   before_action :set_book, only: [:update]
