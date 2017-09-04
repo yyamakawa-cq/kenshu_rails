@@ -22,8 +22,7 @@ class BooksController < ApplicationController
   end
 
   def create
-    @book = Book.new(book_params(:book,:name,:image,:price,:purchase_date))
-    @book['user_id'] = @user.id
+    @book = @user.books.build(book_params)
     @book.image = upload_image(params[:image])
     if @book.save
       @status = 200
@@ -37,8 +36,8 @@ class BooksController < ApplicationController
     if @user.id != @book.user_id
       render json: { 'status': 400, 'message': 'tokenのユーザーidと違う' }, status: :bad_request
     else
-      @book.image = upload_image(params[:image])
-      if @book.update(book_params(:book,:name, @book.image, :price, :purchase_date))
+      params[:book][:image] = upload_image(params[:image])
+      if @book.update(book_params)
         @status = 200
         render :show, status: :ok
       else
@@ -74,7 +73,7 @@ class BooksController < ApplicationController
       @book = Book.find(params[:id])
     end
 
-    def book_params(book, name, image, price, purchase_date)
-      params.require(book).permit(name, image, price, purchase_date)
+    def book_params
+      params.require(:book).permit(:name, :image, :price, :purchase_date)
     end
 end
