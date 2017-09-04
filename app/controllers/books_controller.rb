@@ -3,12 +3,14 @@ class BooksController < ApplicationController
   before_action :authenticate
   before_action :set_user
   before_action :set_book, only: [:update]
-  IMGUR_URL = 'https://api.imgur.com/3/image'
-  CLIENT_ID = 'a732b09187a4d41'
+  IMGUR_URL = 'https://api.imgur.com/3/image'.freeze
+  CLIENT_ID = 'a732b09187a4d41'.freeze
+  LIMIT = 20.freeze
+  PAGE = 1.freeze
 
   def index
-    @limit = (params[:limit] || 20).to_i
-    @page = (params[:page] || 1).to_i
+    @limit = (params[:limit] || LIMIT).to_i
+    @page = (params[:page] || PAGE).to_i
     offset = @limit * (@page - 1 )
     @count = Book.where(user_id: @user.id).count
     @pages = @count / @limit
