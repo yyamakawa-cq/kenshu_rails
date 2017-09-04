@@ -2,12 +2,12 @@ class BooksController < ApplicationController
   include ActionController::HttpAuthentication::Token::ControllerMethods
   require 'httpclient'
   before_action :authenticate
+  before_action :set_user
   before_action :set_book, only: [:update]
   IMGUR_URL = 'https://api.imgur.com/3/image'
   CLIENT_ID = 'a732b09187a4d41'
 
   def index
-    set_user
     @limit = (params[:limit] || 20).to_i
     @page = (params[:page] || 1).to_i
     offset = @limit * (@page - 1 )
@@ -21,7 +21,6 @@ class BooksController < ApplicationController
   end
 
   def create
-    set_user
     @book = Book.new(book_params(:book,:name,:image,:price,:purchase_date))
     @book['user_id'] = @user.id
     @book.image = upload_image(params[:image])
@@ -34,7 +33,6 @@ class BooksController < ApplicationController
   end
 
   def update
-    set_user
     if @user.id != @book.user_id
       render json: { 'status': 400, 'message': 'tokenのユーザーidと違う' }, status: :bad_request
     else
