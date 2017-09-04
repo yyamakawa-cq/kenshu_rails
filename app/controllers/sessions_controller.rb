@@ -1,6 +1,7 @@
 class SessionsController < ApplicationController
   include ActionController::HttpAuthentication::Token::ControllerMethods
   before_action :authenticate, only: [:create]
+  @@token
 
   def create
     if !(User.exists?(email: params[:email].downcase))
@@ -10,10 +11,8 @@ class SessionsController < ApplicationController
       if @user.password != params[:password] then
         render json: { 'status': 401, 'message': 'パスワードが不正' }, status: :unauthorized
       elsif @user.password == params[:password] then
-        authenticate_with_http_token do |token, options|
-          if @user.token != token
-            @user.regenerate_token
-          end
+        if @user.token != @@token
+          @user.regenerate_token
         end
         @status = 200
         render 'users/show', status: :ok
@@ -29,6 +28,7 @@ class SessionsController < ApplicationController
   def authenticate
     authenticate_or_request_with_http_token do |token, options|
       User.where('(token = ?) OR (email = ?)', token, params[:email].downcase)
+      @@token = token
     end
   end
 end
