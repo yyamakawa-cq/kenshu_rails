@@ -1,12 +1,15 @@
 class BooksController < ApplicationController
   include ActionController::HttpAuthentication::Token::ControllerMethods
+  require 'httpclient'
   before_action :authenticate
   before_action :set_book, only: [:update]
+  IMGUR_URL = 'https://api.imgur.com/3/image'
+  CLIENT_ID = 'a732b09187a4d41'
 
   def index
     set_user
-    @limit = params[:limit].to_i || 20
-    @page = params[:page].to_i || 1
+    @limit = (params[:limit] || 20).to_i
+    @page = (params[:page] || 1).to_i
     offset = @limit * (@page - 1 )
     @count = Book.where(user_id: @user.id).count
     @pages = @count / @limit
@@ -19,8 +22,9 @@ class BooksController < ApplicationController
 
   def create
     set_user
-    @book = Book.new(book_params)
-    @book["user_id"] = @user.id
+    @book = Book.new(book_params(:book,:name,:image,:price,:purchase_date))
+    @book['user_id'] = @user.id
+    @book.image = upload_image(params[:image])
     if @book.save
       @status = 200
       render :show, status: :ok
@@ -32,9 +36,10 @@ class BooksController < ApplicationController
   def update
     set_user
     if @user.id != @book.user_id
-      render json: { "status": 400, "message": "tokenのユーザーidと違う" }, status: :bad_request
+      render json: { 'status': 400, 'message': 'tokenのユーザーidと違う' }, status: :bad_request
     else
-      if @book.update(book_params)
+      @book.image = upload_image(params[:image])
+      if @book.update(book_params(:book,:name, @book.image, :price, :purchase_date))
         @status = 200
         render :show, status: :ok
       else
@@ -44,13 +49,22 @@ class BooksController < ApplicationController
   end
 
   protected
-  def authenticate
-    authenticate_or_request_with_http_token do |token, options|
-      User.exists?(token: token)
+    def authenticate
+      authenticate_or_request_with_http_token do |token, options|
+        User.exists?(token: token)
+      end
     end
-  end
 
   private
+    def upload_image(image)
+      header = {'Authorization' => 'Client-ID ' + CLIENT_ID}
+      http_client = HTTPClient.new
+      body = { 'image' => image }
+      @res = http_client.post(URI.parse(IMGUR_URL), body, header)
+      result_hash = JSON.load(@res.body)
+      result_hash['data']['link']
+    end
+
     def set_user
       authenticate_with_http_token do |token, options|
         @user = User.find_by(token: token)
@@ -61,7 +75,7 @@ class BooksController < ApplicationController
       @book = Book.find(params[:id])
     end
 
-    def book_params
-      params.require(:book).permit(:name, :image, :price, :purchase_date)
+    def book_params(book, name, image, price, purchase_date)
+      params.require(book).permit(name, image, price, purchase_date)
     end
 end
