@@ -7,6 +7,7 @@ class BooksController < ApplicationController
   CLIENT_ID = 'a732b09187a4d41'.freeze
   LIMIT = 20.freeze
   PAGE = 1.freeze
+  @@token
 
   def index
     @limit = (params[:limit] || LIMIT).to_i
@@ -50,6 +51,7 @@ class BooksController < ApplicationController
     def authenticate
       authenticate_or_request_with_http_token do |token, options|
         User.exists?(token: token)
+        @@token = token
       end
     end
 
@@ -64,9 +66,7 @@ class BooksController < ApplicationController
     end
 
     def set_user
-      authenticate_with_http_token do |token, options|
-        @user = User.find_by(token: token)
-      end
+      @user = User.find_by(token: @@token)
     end
 
     def set_book
